@@ -8,7 +8,14 @@
 #undef REQUIRE_PLUGIN 
 #include <adminmenu>
 
-
+public Plugin myinfo = 
+{
+	name = "[Entity System] Trigger_",
+	author = "Rostu",
+	description = "Модуль для управления Entity с классом trigger_ ",
+	version = "1.0",
+	url = "https://vk.com/rostu13"
+};
 
 static const char g_sEntityClassName[] = "trigger_teleport";
 
@@ -20,10 +27,9 @@ bool g_bDisplay[MAXPLAYERS + 1];        //Включена ли подсветк
 ArrayList g_hBlockedEntity;
 bool g_bShow[MAXPLAYERS + 1];
 
-char g_sKeyEntity[MAXPLAYERS + 1][64];
-int g_iChat[MAXPLAYERS + 1] = { -1, ...};
+//char g_sKeyEntity[MAXPLAYERS + 1][64];
+//int g_iChat[MAXPLAYERS + 1] = { -1, ...};
 
-int g_iMoveEntity[MAXPLAYERS + 1];
 
 //other
 int g_Offset_m_fEffects;
@@ -31,31 +37,31 @@ int g_Offset_m_fEffects;
 
 public void OnPluginStart()
 {
-    g_hEntityTeleportMenu = new Menu(trigger_teleport_);
+	g_hEntityTeleportMenu = new Menu(trigger_teleport_);
 
 	RegConsoleCmd("sm_print_trigger",Cmd_Print);
 
 	if ( (g_Offset_m_fEffects = FindSendPropInfo("CBaseEntity", "m_fEffects")) == -1)
 		SetFailState("[Entity System] Could not find CBaseEntity:m_fEffects");
 
-    if(Entity_IsWorking())
-    {
-        Entity_RequestType();
+	if(Entity_IsWorking())
+	{
+		Entity_RequestType();
 
-        TopMenu hAdmin = view_as<TopMenu>(Entity_GetAdminMenuHandle());
-        
-        if(hAdmin == null)
-        {
-            return;
-        }
+		TopMenu hAdmin = view_as<TopMenu>(Entity_GetAdminMenuHandle());
+		
+		if(hAdmin == null)
+		{
+			return;
+		}
 
-        TopMenuObject hCategory = hAdmin.FindCategory(g_sAdminMenuCategory);
+		TopMenuObject hCategory = hAdmin.FindCategory(g_sAdminMenuCategory);
 
-        if(hCategory != INVALID_TOPMENUOBJECT)
-        {
-            Entity_OnAdminMenuCreated(hAdmin, hCategory);
-        }
-    }
+		if(hCategory != INVALID_TOPMENUOBJECT)
+		{
+			Entity_OnAdminMenuCreated(hAdmin, hCategory);
+		}
+	}
 }
 public void OnPluginEnd()
 {
@@ -139,19 +145,19 @@ public int trigger_teleport_(Menu menu, MenuAction action, int param1, int param
 }
 public void Entity_OnEntityRegister(int iEntity, char[] sClassName)
 {
-    if(strcmp(sClassName, g_sEntityClassName) != 0) return;
+	if(strcmp(sClassName, g_sEntityClassName) != 0) return;
 
 	char sKey[32];
 	char sInfo[8];
-	
-    GetEntPropString(iEntity,Prop_Data,"m_target",sKey,sizeof sKey); // keys for info_teleport_disctraction
-    Format(sClassName,128, "[%d] %s [%s]",iEntity,sClassName,sKey);
-    IntToString(iEntity,sInfo,sizeof sInfo);
-    g_hEntityTeleportMenu.AddItem(sInfo,sClassName);
 
-    SDKHook(iEntity, SDKHook_StartTouch, OnTrigger_Start);
-    SDKHook(iEntity, SDKHook_EndTouch, OnTrigger);
-    SDKHook(iEntity, SDKHook_Touch, OnTrigger);
+	GetEntPropString(iEntity,Prop_Data,"m_target",sKey,sizeof sKey); // keys for info_teleport_disctraction
+	Format(sClassName,128, "[%d] %s [%s]",iEntity,sClassName,sKey);
+	IntToString(iEntity,sInfo,sizeof sInfo);
+	g_hEntityTeleportMenu.AddItem(sInfo,sClassName);
+
+	SDKHook(iEntity, SDKHook_StartTouch, OnTrigger_Start);
+	SDKHook(iEntity, SDKHook_EndTouch, OnTrigger);
+	SDKHook(iEntity, SDKHook_Touch, OnTrigger);
 }
 
 public Action OnTrigger(int entity, int activator)
@@ -174,16 +180,16 @@ public Action OnTrigger_Start(int entity, int activator)
 	
     if(activator && activator <= MaxClients)
     {
-        if(IsClientConnected(activator))
-        {
+		if(IsClientConnected(activator))
+		{
 			if(g_bShow[activator])
 			CGOPrintToChat(activator, "[%N] %d [%d]",activator,entity,g_hBlockedEntity.FindValue(entity));
 			
-            if(IsFakeClient(activator) || g_hBlockedEntity.FindValue(entity) != -1)
-            {
-                return Plugin_Handled;
-            }
-        }
+			if(IsFakeClient(activator) || g_hBlockedEntity.FindValue(entity) != -1)
+			{
+				return Plugin_Handled;
+			}
+		}
     }
    
     return Plugin_Continue;
@@ -224,42 +230,42 @@ public int trigger_teleport_edit_(Menu menu, MenuAction action, int param1, int 
     else if (action == MenuAction_Select)
     {
 		int iEntity = Entity_GetClientEditEntity(param1);
-        switch(param2)
-        {
-            case 0: // Позиция [Телепортироваться]
-            {
-                Entity_TeleportToEditEntity(param1);
-            }
-            case 1: // Подсветить
-            {
-                g_bDisplay[param1] = !g_bDisplay[param1];
-                SetClientDrawTrigger(param1, g_bDisplay[param1] ? iEntity : -1);
-                CGOPrintToChat(param1, "Вы успешно %s подсветку %d энтити",g_bDisplay[param1] ? "включили" : "выключили",iEntity);
-            }
-            case 2: // Сменить Key
-            {
-                /*
-                g_iChat[param1] = Chat_WaitKey;
-                g_sKeyEntity[param1][0] = 0;
-                ChangeEntityKey(param1);
-                */
-                return 0;
-            }
-            case 3: // Смена статуса
-            {
-                int index = g_hBlockedEntity.FindValue(iEntity);
-                if(index != -1) g_hBlockedEntity.Erase(index);
+		switch(param2)
+		{
+			case 0: // Позиция [Телепортироваться]
+			{
+				Entity_TeleportToEditEntity(param1);
+			}
+			case 1: // Подсветить
+			{
+				g_bDisplay[param1] = !g_bDisplay[param1];
+				SetClientDrawTrigger(param1, g_bDisplay[param1] ? iEntity : -1);
+				CGOPrintToChat(param1, "Вы успешно %s подсветку %d энтити",g_bDisplay[param1] ? "включили" : "выключили",iEntity);
+			}
+			case 2: // Сменить Key
+			{
+				/*
+				g_iChat[param1] = Chat_WaitKey;
+				g_sKeyEntity[param1][0] = 0;
+				ChangeEntityKey(param1);
+				*/
+				return 0;
+			}
+			case 3: // Смена статуса
+			{
+				int index = g_hBlockedEntity.FindValue(iEntity);
+				if(index != -1) g_hBlockedEntity.Erase(index);
 				else g_hBlockedEntity.Push(iEntity);
 
-                CGOPrintToChat(param1, "Вы успешно %s энтити %d",index == -1 ? "Выключили" : "Включили", iEntity);
-            }
-            case 4: // Расположение
-            {
-                Entity_EditMenuAccess(param1, true);
-                return 0;
-            }
+				CGOPrintToChat(param1, "Вы успешно %s энтити %d",index == -1 ? "Выключили" : "Включили", iEntity);
+			}
+			case 4: // Расположение
+			{
+				Entity_EditMenuAccess(param1, true);
+				return 0;
+			}
         }
-        TriggerTeleportEditMenu(param1);
+		TriggerTeleportEditMenu(param1);
     }
     else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
     {
@@ -313,148 +319,6 @@ public int Key_(Menu menu, MenuAction action, int param1, int param2)
 }
 */
 
-/*
-stock void CreateEditMenu(int iClient, bool bNext = false)
-{
-	Menu menu = new Menu(Edit_);
-    menu.ExitBackButton = true;
-
-    int iEntity = Entity_GetClientEditEntity(iClient);
-    
-    float fPos[3];
-	GetEntPropVector(iEntity, Prop_Send, "m_vecOrigin", fPos);
-
-    float fRotateVec[3];
-	GetEntPropVector(iEntity, Prop_Send, "m_angRotation", fRotateVec);
-
-	menu.SetTitle("%d - редактируете\nКоординаты:\n1: %.2f\n 2: %.2f\n3: %.2f\nУглы\n1: %.2f\n2: %.2f\n3: %.2f",iEntity, fPos[0], fPos[1], fPos[2],fRotateVec[0],fRotateVec[1],fRotateVec[2]);
-
-    char sInfo[16];
-    char sDisplay[16];
-
-    char sSymbol[2];
-    for(int x = 0; x < 3;x++)
-    {
-        sSymbol[0] = x == 0 ? 'X' : x == 1 ? 'Y' : 'Z';
-
-        FormatEx(sInfo,sizeof sInfo, "%d%c",g_iMoveEntity[iClient], sSymbol[0]);
-        FormatEx(sDisplay, sizeof sDisplay, "%d %c", g_iMoveEntity[iClient], sSymbol[0]);
-        menu.AddItem(sInfo, sDisplay);
-
-        FormatEx(sInfo,sizeof sInfo, "%d%c",-g_iMoveEntity[iClient], sSymbol[0]);
-        FormatEx(sDisplay, sizeof sDisplay, "%d %c", -g_iMoveEntity[iClient], sSymbol[0]);
-        menu.AddItem(sInfo, sDisplay);
-    }
-
-    menu.AddItem(NULL_STRING,"Настройка перемешения энтити\n ");
-
-    FormatEx(sInfo, sizeof sInfo, "%d", g_iMoveEntity[iClient]);
-    FormatEx(sDisplay,sizeof sDisplay, "+ %d градусов", g_iMoveEntity[iClient]);
-    menu.AddItem(sInfo, sDisplay);
-
-    FormatEx(sInfo, sizeof sInfo, "%d", -g_iMoveEntity[iClient]);
-    FormatEx(sDisplay,sizeof sDisplay, "- %d градусов",g_iMoveEntity[iClient]);
-    menu.AddItem(sInfo, sDisplay);
-
-    if(bNext)
-    {
-        menu.DisplayAt(iClient, 6, MENU_TIME_FOREVER);
-    }
-    else
-    {
-	    menu.Display(iClient, MENU_TIME_FOREVER);
-    }
-}
-public int Edit_ (Menu menu, MenuAction action, int param1, int param2)
-{
-    if(action == MenuAction_End) delete menu;
-	else if(action == MenuAction_Select)
-	{
-        char sInfo[8];
-		menu.GetItem(param2, sInfo,sizeof sInfo);
-
-        if(param2 == 6)
-        {
-            g_iChat[param1] = Chat_WaitAngles;
-            CreateEditMoveEntityMenu(param1);
-        }
-        else if(param2 > 6)
-        {
-            int iValue = StringToInt(sInfo);
-
-            float fRotateVec[3];
-	        GetEntPropVector(g_iEntityEdited[param1], Prop_Send, "m_angRotation", fRotateVec);
-
-            fRotateVec[0] += iValue;
-            
-            if(fRotateVec[0] > 360.0) fRotateVec[0] = 360.0;
-            else if (fRotateVec[0] < -360.0) fRotateVec[0] = -360.0;
-
-            SetEntPropVector(g_iEntityEdited[param1], Prop_Send, "m_angRotation", fRotateVec); 
-
-            CreateEditMenu(param1, true);
-            return 0;
-        }
-        
-
-		int iLen = strlen(sInfo);
-
-		char sSymbol[2];
-		sSymbol[0] = sInfo[iLen - 1];
-		sInfo[iLen - 1] = 0;
-
-		int iInfo = StringToInt(sInfo);
-
-		float fPos[3];
-		GetEntPropVector(g_iEntityEdited[param1], Prop_Send, "m_vecOrigin", fPos);
-
-		switch(sSymbol[0])
-		{
-			case 'X':
-			{
-				fPos[0] += iInfo;
-			}
-			case 'Y':
-			{
-				fPos[2] += iInfo;
-			}
-			case 'Z':
-			{
-				fPos[1] += iInfo;
-			}
-		}
-
-		TeleportEntity(g_iEntityEdited[param1], fPos, NULL_VECTOR, NULL_VECTOR);
-		CreateEditMenu(param1);
-	}
-    else if (action == MenuAction_Cancel && param2 == MenuCancel_ExitBack)
-    {
-        TriggerTeleportEditMenu(param1);
-    }
-	return 0;
-}
-stock void CreateEditMoveEntityMenu(int iClient)
-{
-    static Menu menu;
-
-    if(menu == null)
-    {
-        menu = new Menu(EditMove_);
-        menu.SetTitle("Напишите в чат число [1 - 90] для установления перемещения энтити");
-        menu.AddItem(NULL_STRING,"Назад");
-        menu.ExitButton = false;
-    }
-
-    menu.Display(iClient, MENU_TIME_FOREVER);
-}
-public int EditMove_ (Menu menu, MenuAction action, int param1, int param2)
-{
-    if(action == MenuAction_Select)
-	{
-        CreateEditMenu(param1);
-    }
-}
-*/
 //https://forums.alliedmods.net/showthread.php?p=2470255
 stock void SetClientDrawTrigger(int iClient, int entity)
 {
