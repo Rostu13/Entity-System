@@ -5,24 +5,24 @@
 
 stock const char g_sAdminMenuCategory[] = "entity_system";
 
-stock void TelepotEntityToClient(int iClient, int iEntity)
+stock void TelepotEntityToClient(int client, int entity)
 {
 	float fPos[3];
-	GetEntPropVector(iClient, Prop_Data, "m_vecOrigin", fPos); 
+	GetEntPropVector(client, Prop_Data, "m_vecOrigin", fPos); 
 
-	TeleportEntity(iEntity,fPos,NULL_VECTOR, NULL_VECTOR);
+	TeleportEntity(entity, fPos, NULL_VECTOR, NULL_VECTOR);
 }
 
 native bool Entity_IsWorking();
 
-native void Entity_RegisterType(const char[] sName);
-native void Entity_UnRegisterType(const char[] sName);
+native void Entity_RegisterType(const char[] name);
+native void Entity_UnRegisterType(const char[] name);
 
-native int Entity_GetClientEditEntity(int iClient);
-native void Entity_SetClientEditEntity(int iClient, int iEntity);
+native int entityity_GetClientEditEntity(int client);
+native void Entity_SetClientEditEntity(int client, int entity);
 
-native void Entity_GetClientEditClassName(int iClient, char[] sClassName);
+native void Entity_GetClientEditClassName(int client, char[] class);
 
-native bool Entity_EditMenuAccess(int iClient, bool bAcces);
-native void Entity_TeleportToEditEntity(int iClient);
-native int Entity_GetAdminMenuHandle();
+native bool Entity_EditMenuAccess(int client, bool acces);
+native void Entity_TeleportToEditEntity(int client);
+native int entityity_GetAdminMenuHandle();
