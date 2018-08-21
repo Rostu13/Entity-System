@@ -41,7 +41,6 @@ public int Native_UnRegisterType(Handle hPlugin, int iParms)
 	if(iType == -1)
 	{
 		ThrowNativeError(1,"[Entity System] Попытка удалить несуществующий тип: %s",sType);
-		return;
 	}
 
 	g_hRegisteredTypes.Erase(iType);
@@ -49,40 +48,40 @@ public int Native_UnRegisterType(Handle hPlugin, int iParms)
 
 public int Native_GetClientEditEntity(Handle hPlugin, int iParms)
 {
-	int iClient = GetNativeCell(1);
+	int client = GetNativeCell(1);
 
-	return g_iEntityEdited[iClient];
+	return g_iEntityEdited[client];
 }
 
 public int Native_SetClientEditEntity(Handle hPlugin, int iParms)
 {
-	int iClient = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	int iEntity = GetNativeCell(2);
 
-	g_iEntityEdited[iClient] = iEntity;
-	GetEdictClassname(iEntity, g_sClassName[iClient], sizeof(g_sClassName[]));
+	g_iEntityEdited[client] = iEntity;
+	GetEdictClassname(iEntity, g_sClassName[client], sizeof(g_sClassName[]));
 }
 
 public int Native_GetClientEditClassName(Handle hPlugin, int iParms)
 {
-	int iClient = GetNativeCell(1);
+	int client = GetNativeCell(1);
 
-	SetNativeString(2, g_sClassName[iClient], sizeof g_sClassName);
+	SetNativeString(2, g_sClassName[client], sizeof g_sClassName);
 }
 
 public int Native_EditMenuAccess(Handle hPlugin, int iParms)
 {
-	int iClient = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	bool bAcces = GetNativeCell(2);
 
-	g_bEditPosEntity[iClient] = bAcces;
-	CreateEditMenu(iClient);
+	g_bEditPosEntity[client] = bAcces;
+	CreateEditMenu(client);
 }
 
 public int Native_TeleportToEditEntity(Handle hPlugin, int iParms)
 {
-	int iClient = GetNativeCell(1);
-	TeleportToEditEntity(iClient);
+	int client = GetNativeCell(1);
+	TeleportToEditEntity(client);
 }
 
 public int Native_GetAdminMenuHandle(Handle hPlugin, int iParms)

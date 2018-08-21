@@ -13,7 +13,7 @@ public Plugin myinfo =
 	name = "[Entity System] Trigger_",
 	author = "Rostu",
 	description = "Модуль для управления Entity с классом trigger_ ",
-	version = "1.0",
+	version = "1.1",
 	url = "https://vk.com/rostu13"
 };
 
@@ -50,17 +50,11 @@ public void OnPluginStart()
 
 		TopMenu hAdmin = view_as<TopMenu>(Entity_GetAdminMenuHandle());
 		
-		if(hAdmin == null)
-		{
-			return;
-		}
+		if(hAdmin == null)  return;
 
 		TopMenuObject hCategory = hAdmin.FindCategory(g_sAdminMenuCategory);
 
-		if(hCategory != INVALID_TOPMENUOBJECT)
-		{
-			Entity_OnAdminMenuCreated(hAdmin, hCategory);
-		}
+		if(hCategory != INVALID_TOPMENUOBJECT)  Entity_OnAdminMenuCreated(hAdmin, hCategory);
 	}
 }
 public void OnPluginEnd()
@@ -143,7 +137,7 @@ public int trigger_teleport_(Menu menu, MenuAction action, int param1, int param
         FakeClientCommand(param1, "sm_admin");
     }
 }
-public void Entity_OnEntityRegister(int iEntity, char[] sClassName)
+public void Entity_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, KeyValues kv)
 {
 	if(strcmp(sClassName, g_sEntityClassName) != 0) return;
 
@@ -177,7 +171,6 @@ public Action OnTrigger(int entity, int activator)
 }
 public Action OnTrigger_Start(int entity, int activator)
 {
-	
     if(activator && activator <= MaxClients)
     {
 		if(IsClientConnected(activator))
