@@ -2,10 +2,27 @@
   #endinput
 #endif
 #define _entity_system_included
+#pragma tabsize 0 // Sorry
 
+#define MENU_CALLBACK(%0) public int %0 (Menu menu, MenuAction action, int param1, int param2)
+
+enum EntityEditType
+{
+	EditType_None = -1,
+
+	EditType_Entity,	
+	EditType_Custom
+};
+
+
+//stock
 stock const char g_sAdminMenuCategory[] = "entity_system";
-stock const char g_sPosKeyKV[] = "pos";
-stock const char g_sAnglesKeyKV[] = "angles";
+stock const char g_sSaveKeyKV[][] = 
+{
+	"pos",
+	"angles",
+	"color"
+};
 
 stock void TelepotEntityToClient(int client, int entity)
 {
@@ -17,18 +34,20 @@ stock void TelepotEntityToClient(int client, int entity)
 
 // Natives
 
-native bool 	Entity_IsWorking();
+native int 		Entity_GetClientEditEntity(int client);
+native void 		Entity_SetClientEditEntity(int client, int entity);
 
-native void 	Entity_RegisterType(const char[] name);
-native void 	Entity_UnRegisterType(const char[] name);
-
-native int 	Entity_GetClientEditEntity(int client);
-native void 	Entity_SetClientEditEntity(int client, int entity);
-
-native void 	Entity_GetClientEditClassName(int client, char[] class);
-
-native bool 	Entity_EditMenuAccess(int client, bool acces);
-native void 	Entity_TeleportToEditEntity(int client);
-native int 	Entity_GetAdminMenuHandle();
+native void 		Entity_OpenEditMenu(int client);
+native void		Entity_OpenCustomEditMenu(int client);
+native void 		Entity_TeleportToEditEntity(int client);
+native int 		Entity_GetAdminMenuHandle();
+native KeyValues 	Entity_GetKeyValues();
+native void 		Entity_GetKeyValuesPath(char[] sPath, int iMaxLength);
 
 //Forwards
+
+forward void Entity_RequestType(ArrayList hList);
+forward void Entity_OnAdminMenuCreated(TopMenu hMenu, TopMenuObject hCategory);
+forward void Entity_EndEditMenu(int client, char[] sClassName, bool bCustom, bool bSave, int iValue);
+forward void Entity_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, KeyValues kv);
+forward void Entity_CustomEntitySpawn(int iEntity, bool bCustom, KeyValues kv)

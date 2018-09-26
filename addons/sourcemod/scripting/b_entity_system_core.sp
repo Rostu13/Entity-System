@@ -1,31 +1,40 @@
 #include <sourcemod>
-#include <csgo_colors>
 
 #pragma newdecls required
-#pragma tabsize 0 // Sorry 
 
 #include <sdkhooks>
 #include <sdktools>
-#include <entity_system>
 
 #undef REQUIRE_PLUGIN 
 #include <adminmenu>
+
+#include <entity_system>
 
 public Plugin myinfo = 
 {
 	name		= "[Entity System] Core",
 	author		= "Rostu",
 	description	= "Ядро для управления Entity сервера ",
-	version		= "2.1.0",
+	version		= "3.0.0",
 	url			= "https://vk.com/rostu13"
 };
 
-enum ChangeTypePosEntity
+enum 
+{
+	Settings_Name,
+	Settings_Min,
+	Settings_Max,
+}
+
+enum ChangeTypeEntity
 {
 	Type_Pos,
-	Type_Angles
-};
+	Type_Angles,
+	Type_RGB,
 
+	// Future
+	Type_MAX
+};
 enum ChangePosEntity
 {
 	Axis_X,
@@ -33,8 +42,37 @@ enum ChangePosEntity
 	Axis_Y
 };
 
-ChangeTypePosEntity g_TypePos[MAXPLAYERS + 1];
-ChangePosEntity g_Axis[MAXPLAYERS + 1];
+enum ChangeRGBEntity
+{
+	Color_Red,
+	Color_Green,
+	Color_Blue
+};
+stock const char g_sChangeRGB[][] =
+{
+	"Красный",
+	"Зеленый",
+	"Синий"
+};
+
+stock const char g_sRedact[][] = 
+{
+	"Позицию",
+	"Углы",
+	"RGB"
+};
+
+EntityEditType g_Type[MAXPLAYERS + 1];
+ChangeTypeEntity 	g_TypePos	[MAXPLAYERS + 1];
+ChangePosEntity 	g_Axis		[MAXPLAYERS + 1];
+ChangeRGBEntity 	g_Color		[MAXPLAYERS + 1];
+
+#define Settings_MIN 0
+#define Settings_MAX 1
+
+int g_iCustomSettings[MAXPLAYERS + 1][2];
+int g_iCustomCurrent[MAXPLAYERS + 1];
+char g_sCustomName[MAXPLAYERS + 1][32];
 
 TopMenu g_hAdmin;
 
@@ -48,8 +86,9 @@ bool g_bEditPosEntity[MAXPLAYERS + 1];
 
 ArrayList g_hRegisteredTypes;
 
-bool g_bLate,
-	g_bLoaded;
+int g_iRenderClrOffset;
+
+bool g_bLate;
 
 #include "EntitySystem/Stock.sp"
 #include "EntitySystem/Native.sp"
@@ -61,15 +100,14 @@ public APLRes AskPluginLoad2(Handle hPlugin, bool bLate, char[] sError, int iErr
 {
 	g_bLate = bLate;
 	Entity_CreateNative();
+	RegPluginLibrary( "entity_system" );
 }
 
 public void OnPluginStart()
 {
-	g_hRegisteredTypes = new ArrayList(ByteCountToCells(32));
-
-	RegConsoleCmd("sm_editmenu", Cmd_EditMenu);
-
 	HookEvent("round_start", Event_Start,EventHookMode_PostNoCopy);
+
+	g_iRenderClrOffset  = FindSendPropInfo( "CCSPlayer", "m_clrRender"   ); 
 
 	if(LibraryExists("adminmenu"))
 	{
@@ -78,27 +116,24 @@ public void OnPluginStart()
 	}
 
 	if(g_bLate)
-		for(int x = 1; x <= MaxClients; x++) if(IsClientInGame(x) && !IsFakeClient(x)) OnClientPutIntServer(x);
-
-	g_bLoaded = true;
-	Forward_RequestType();
+		for(int x = 1; x <= MaxClients; x++) if(IsClientInGame(x) && !IsFakeClient(x)) OnClientPutInServer(x);
 }
 
 public void OnLibraryRemoved(const char[] sName)
 {
-	if(StrEqual(sName, "adminmenu")) g_hAdmin = null;
+	if(!strcmp(sName, "adminmenu")) g_hAdmin = null;
 }
-public void OnClientDisconnect(int iClient)
+public void OnClientDisconnect(int client)
 {
-	g_bEditPosEntity[iClient] = false;
+	g_Type[client] = EditType_None;
 }
 
 public void OnMapStart()
 {
-	if(g_hKv != null) delete g_hKv;
+	if(g_hKv != null) g_hKv.Close();
 
 	BuildPath(Path_SM, g_sPath,sizeof g_sPath, "configs/EntitySystem");
-	if ( !DirExistsExtend( g_sPath ) ) return;
+	if ( !DirExistsEx( g_sPath ) ) return;
     
     char sMap[128];
     GetCurrentMapSafe( sMap, sizeof sMap);
@@ -113,6 +148,17 @@ public void OnMapStart()
 
 public Action Timer_DelayEntity(Handle hTimer)
 {
+	if(g_hRegisteredTypes != null) g_hRegisteredTypes.Close();
+	g_hRegisteredTypes = new ArrayList(ByteCountToCells(32));
+
+	Forward_RequestType();
+
+	if(!g_hRegisteredTypes.Length)
+	{
+		g_hRegisteredTypes.Close();
+		return Plugin_Continue;
+	}
+
 	char sClassName[64];
 	char sEntity[8];
 
@@ -137,52 +183,66 @@ public Action Timer_DelayEntity(Handle hTimer)
 		g_hKv.Rewind();
 	}
 
+	delete g_hRegisteredTypes;
 	g_hKv.Rewind();
+
+	return Plugin_Continue;
 }
 public void Event_Start(Event hEvent, const char[] sName, bool bDontBroadcast)
 {
 	if(!GameRules_GetProp("m_bWarmupPeriod"))	ChangeEntity();
 }
-public void OnClientPutIntServer(int client)
+public void OnClientPutInServer(int client)
 {
 	g_bEditPosEntity[client] = false;
 	g_iEntityEdited[client] = 0;
-}
 
-public Action Cmd_EditMenu(int client, int iArgs)
-{
-	CreateEditMenu(client);
+	g_Type[client] = EditType_None;
 }
-
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3], int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
-	if(!g_bEditPosEntity[client] || !g_iEntityEdited[client] || !IsValidEntity(g_iEntityEdited[client])
+	if(g_Type[client] == EditType_None || !g_iEntityEdited[client] || !IsValidEntity(g_iEntityEdited[client])
 	|| (!(buttons & IN_USE) == !(buttons & IN_RELOAD)))
 		return Plugin_Continue;
 
-	static float fVec[3];
-	if(g_TypePos[client] == Type_Pos)
+	if(g_TypePos[client] == Type_RGB)
 	{
-		GetEntPropVector(g_iEntityEdited[client], Prop_Send, "m_vecOrigin", fVec);
+		static int iColor[4];
+		GetEntDataArray(g_iEntityEdited[client], g_iRenderClrOffset, iColor, 4, 1);
 
-		if(buttons & IN_USE)
-			fVec[g_Axis[client]]++;
-		else fVec[g_Axis[client]]--;
+		if(buttons & IN_USE)	iColor[g_Color[client]]++;
+		else 					iColor[g_Color[client]]--;
 
-		TeleportEntity(g_iEntityEdited[client], fVec, NULL_VECTOR, NULL_VECTOR);
+		if(iColor[g_Color[client]] < 1) iColor[g_Color[client]] = 1;
+		else if (iColor[g_Color[client]] > 255) iColor[g_Color[client]] = 255;
+
+		SetEntDataArray(g_iEntityEdited[client], g_iRenderClrOffset, iColor, 4, 1);
 	}
-	else if(g_TypePos[client] == Type_Angles)
+	else
 	{
-		GetEntPropVector(g_iEntityEdited[client], Prop_Send, "m_angRotation", fVec);
+		static float fVec[3];
+		if(g_TypePos[client] == Type_Pos)
+		{
+			GetEntPropVector(g_iEntityEdited[client], Prop_Send, "m_vecOrigin", fVec);
 
-		if(buttons & IN_USE)
-			fVec[g_Axis[client]]++;
-		else fVec[g_Axis[client]]--;
+			if(buttons & IN_USE)	fVec[g_Axis[client]]++;
+			else 					fVec[g_Axis[client]]--;
 
-		if(FloatAbs(fVec[g_Axis[client]]) > 360)
-			fVec[g_Axis[client]] = FloatFraction(fVec[g_Axis[client]]) + RoundToZero(fVec[g_Axis[client]]) % 360;
+			TeleportEntity(g_iEntityEdited[client], fVec, NULL_VECTOR, NULL_VECTOR);
+		}
+		else if(g_TypePos[client] == Type_Angles)
+		{
+			GetEntPropVector(g_iEntityEdited[client], Prop_Send, "m_angRotation", fVec);
 
-		SetEntPropVector(g_iEntityEdited[client], Prop_Send, "m_angRotation", fVec);
+			if(buttons & IN_USE)		fVec[g_Axis[client]]++;
+			else 						fVec[g_Axis[client]]--;
+
+			if(FloatAbs(fVec[g_Axis[client]]) > 360)
+				fVec[g_Axis[client]] = FloatFraction(fVec[g_Axis[client]]) + RoundToZero(fVec[g_Axis[client]]) % 360;
+
+			SetEntPropVector(g_iEntityEdited[client], Prop_Send, "m_angRotation", fVec);
+		}
 	}
+
 	return Plugin_Continue;
 }

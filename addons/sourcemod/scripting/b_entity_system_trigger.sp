@@ -3,17 +3,18 @@
 #include <sdkhooks>
 #include <sdktools>
 #include <csgo_colors>
-#include <entity_system>
 
 #undef REQUIRE_PLUGIN 
 #include <adminmenu>
+
+#include <entity_system>
 
 public Plugin myinfo = 
 {
 	name = "[Entity System] Trigger_",
 	author = "Rostu",
 	description = "Модуль для управления Entity с классом trigger_ ",
-	version = "1.1",
+	version = "1.3",
 	url = "https://vk.com/rostu13"
 };
 
@@ -39,62 +40,27 @@ public void OnPluginStart()
 {
 	g_hEntityTeleportMenu = new Menu(trigger_teleport_);
 
+	HookEvent("round_start", Event_Start);
+
 	RegConsoleCmd("sm_print_trigger",Cmd_Print);
 
 	if ( (g_Offset_m_fEffects = FindSendPropInfo("CBaseEntity", "m_fEffects")) == -1)
 		SetFailState("[Entity System] Could not find CBaseEntity:m_fEffects");
 
-	if(Entity_IsWorking())
+    if(LibraryExists( "entity_system" ))
 	{
-		Entity_RequestType();
-
 		TopMenu hAdmin = view_as<TopMenu>(Entity_GetAdminMenuHandle());
-		
-		if(hAdmin == null)  return;
+	    if(hAdmin == null)  return;
 
-		TopMenuObject hCategory = hAdmin.FindCategory(g_sAdminMenuCategory);
+        TopMenuObject hCategory = hAdmin.FindCategory(g_sAdminMenuCategory);
+	    if(hCategory != INVALID_TOPMENUOBJECT)  Entity_OnAdminMenuCreated(hAdmin, hCategory);
+	}	
+}
+public void Entity_RequestType(ArrayList hList)
+{
+    hList.PushString(g_sEntityClassName);
 
-		if(hCategory != INVALID_TOPMENUOBJECT)  Entity_OnAdminMenuCreated(hAdmin, hCategory);
-	}
-}
-public void OnPluginEnd()
-{
-    if(Entity_IsWorking())
-    {
-        Entity_UnRegisterType(g_sEntityClassName);
-    }
-}
-public void Entity_RequestType()
-{
-    Entity_RegisterType(g_sEntityClassName);
-}
-/*
-public Action CallBack(int iClient, const char[] command, int args)     
-{     
-    if (iClient && g_iChat[iClient] != Chat_WaitNone)
-    {  
-        char sText[64];  
-        GetCmdArgString(sText, sizeof sText);  
-        StripQuotes(sText);   
-
-        if(g_iChat[iClient] == Chat_WaitKey)
-        {
-            strcopy(g_sKeyEntity[iClient],sizeof g_sKeyEntity, sText);	
-            ChangeEntityKey(iClient);	
-        }
-    }
-    return Plugin_Continue;  
-} 
-*/
-public Action Cmd_Print(int iClient, int args)
-{
-	g_bShow[iClient] = !g_bShow[iClient];
-	CGOPrintToChat(iClient,"Вы %s отображение информации о триггере",g_bShow[iClient] ? "включили" : "выключили" );
-}
-
-public void OnMapStart()
-{
-    if(g_hBlockedEntity != null) delete g_hBlockedEntity;
+    if(g_hBlockedEntity != null) g_hBlockedEntity.Close();
     g_hBlockedEntity = new ArrayList();
 
     g_hEntityTeleportMenu.RemoveAllItems();
@@ -102,6 +68,34 @@ public void OnMapStart()
     g_hEntityTeleportMenu.ExitBackButton = true;
 }
 
+public Action Cmd_Print(int iClient, int args)
+{
+	g_bShow[iClient] = !g_bShow[iClient];
+	CGOPrintToChat(iClient,"Вы %s отображение информации о триггере",g_bShow[iClient] ? "включили" : "выключили" );
+}
+public void OnClientPutInServer(int iClient)
+{
+    g_bDisplay[iClient] = false;
+    g_iEntityDraw[iClient] = -1;
+}
+
+public void Event_Start(Event hEvent, const char[] sName, bool bDontBroadcast)
+{
+	char sClassName[64];
+
+	for (int iEntity = MAXPLAYERS + 1; iEntity <= GetEntityCount(); ++iEntity)
+	{
+		if(!IsValidEdict(iEntity)) continue;
+
+		GetEdictClassname(iEntity, sClassName, sizeof sClassName);
+
+		if(strcmp(sClassName, g_sEntityClassName) != 0) continue;
+
+		SDKHook(iEntity, SDKHook_StartTouch, OnTrigger_Start);
+		SDKHook(iEntity, SDKHook_EndTouch, OnTrigger);
+		SDKHook(iEntity, SDKHook_Touch, OnTrigger);
+	}
+}
 public void Entity_OnAdminMenuCreated(TopMenu hAdmin, TopMenuObject hCategory)
 {
     hAdmin.AddItem("entity_system_teleport", Handler_Trigger_Teleport, hCategory, "trigger_teleport", ADMFLAG_ROOT, "Список trigger_teleport");
@@ -140,7 +134,7 @@ public int trigger_teleport_(Menu menu, MenuAction action, int param1, int param
 public void Entity_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, KeyValues kv)
 {
 	if(strcmp(sClassName, g_sEntityClassName) != 0) return;
-
+    
 	char sKey[32];
 	char sInfo[8];
 
@@ -148,10 +142,6 @@ public void Entity_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, 
 	Format(sClassName,128, "[%d] %s [%s]",iEntity,sClassName,sKey);
 	IntToString(iEntity,sInfo,sizeof sInfo);
 	g_hEntityTeleportMenu.AddItem(sInfo,sClassName);
-
-	SDKHook(iEntity, SDKHook_StartTouch, OnTrigger_Start);
-	SDKHook(iEntity, SDKHook_EndTouch, OnTrigger);
-	SDKHook(iEntity, SDKHook_Touch, OnTrigger);
 }
 
 public Action OnTrigger(int entity, int activator)
@@ -208,7 +198,7 @@ void TriggerTeleportEditMenu (int iClient)
 
     FormatEx(sInfo,sizeof sInfo,"Подсветка Entity [ %s ]",g_bDisplay[iClient] ? "Включена" : "Выключена");
     menu.AddItem("",sInfo);
-    menu.AddItem("","Сменить key триггера");
+    menu.AddItem("","Сменить key триггера", ITEMDRAW_DISABLED);
 
     FormatEx(sInfo,sizeof sInfo, "Статус: %s", g_hBlockedEntity.FindValue(iEntity) == -1 ? "Включен" : "Выключен");
     menu.AddItem("",sInfo);
@@ -219,7 +209,7 @@ void TriggerTeleportEditMenu (int iClient)
 }
 public int trigger_teleport_edit_(Menu menu, MenuAction action, int param1, int param2)
 {
-    if(action == MenuAction_End) delete menu;
+    if(action == MenuAction_End) menu.Close();
     else if (action == MenuAction_Select)
     {
 		int iEntity = Entity_GetClientEditEntity(param1);
@@ -232,7 +222,7 @@ public int trigger_teleport_edit_(Menu menu, MenuAction action, int param1, int 
 			case 1: // Подсветить
 			{
 				g_bDisplay[param1] = !g_bDisplay[param1];
-				SetClientDrawTrigger(param1, g_bDisplay[param1] ? iEntity : -1);
+				SetClientDrawTrigger(param1, iEntity, g_bDisplay[param1]);
 				CGOPrintToChat(param1, "Вы успешно %s подсветку %d энтити",g_bDisplay[param1] ? "включили" : "выключили",iEntity);
 			}
 			case 2: // Сменить Key
@@ -254,7 +244,7 @@ public int trigger_teleport_edit_(Menu menu, MenuAction action, int param1, int 
 			}
 			case 4: // Расположение
 			{
-				Entity_EditMenuAccess(param1, true);
+				Entity_OpenEditMenu(param1);
 				return 0;
 			}
         }
@@ -266,13 +256,12 @@ public int trigger_teleport_edit_(Menu menu, MenuAction action, int param1, int 
     }
     return 0;
 }
-public void Entity_EndEditMenu(int iClient, char[] sClassName)
+public void Entity_EndEditMenu(int iClient, char[] sClassName, bool bCustom, bool bSave, int iValue)
 {
     if(strcmp(sClassName, g_sEntityClassName) == 0)
-    {
         TriggerTeleportEditMenu(iClient);
-    }
 }
+
 /*
 stock void ChangeEntityKey(int iClient)
 {
@@ -313,13 +302,13 @@ public int Key_(Menu menu, MenuAction action, int param1, int param2)
 */
 
 //https://forums.alliedmods.net/showthread.php?p=2470255
-stock void SetClientDrawTrigger(int iClient, int entity)
+stock void SetClientDrawTrigger(int iClient, int entity, bool bDraw)
 {
 	int effectFlags = GetEntData(entity, g_Offset_m_fEffects);
 	int edictFlags = GetEdictFlags(entity);
 	
 	// Determine whether to transmit or not
-	if (entity != -1) {
+	if (bDraw) {
 		effectFlags &= ~EF_NODRAW;
 		edictFlags &= ~FL_EDICT_DONTSEND;
 	} else {
@@ -333,12 +322,12 @@ stock void SetClientDrawTrigger(int iClient, int entity)
 	SetEdictFlags(entity, edictFlags);
 	
 	// Should we hook?
-	if (entity != -1)
+	if (bDraw)
 		SDKHook(entity, SDKHook_SetTransmit, Hook_SetTransmit);
 	else
 		SDKUnhook(entity, SDKHook_SetTransmit, Hook_SetTransmit);
 
-	g_iEntityDraw[iClient]=  entity;
+	g_iEntityDraw[iClient]=  bDraw ? entity : -1;
 }
 
 public Action Hook_SetTransmit(int entity, int client)
