@@ -6,12 +6,12 @@
 
 #define MENU_CALLBACK(%0) public int %0 (Menu menu, MenuAction action, int param1, int param2)
 
-enum EntityEditType
+enum EntityEdit
 {
-	EditType_None = -1,
+	Edit_None = -1,
 
-	EditType_Entity,	
-	EditType_Custom
+	Edit_Entity,	
+	Edit_Custom
 };
 
 
@@ -47,7 +47,7 @@ native void 		Entity_GetKeyValuesPath(char[] sPath, int iMaxLength);
 //Forwards
 
 forward void Entity_RequestType(ArrayList hList);
-forward void Entity_OnAdminMenuCreated(TopMenu hMenu, TopMenuObject hCategory);
+forward void Entity_OnAdminMenuCreated(TopMenu hAdmin, TopMenuObject hCategory);
 forward void Entity_EndEditMenu(int client, char[] sClassName, bool bCustom, bool bSave, int iValue);
 forward void Entity_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, KeyValues kv);
 forward void Entity_CustomEntitySpawn(int iEntity, bool bCustom, KeyValues kv)

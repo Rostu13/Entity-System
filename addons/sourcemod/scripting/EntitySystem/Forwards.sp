@@ -31,7 +31,7 @@ stock void Forward_EndEditMenu(int client, bool bCustom = false, bool bSave = fa
 
 	Call_StartForward(hForward);
 	Call_PushCell(client);
-	Call_PushString(g_sClassName[client]);
+	Call_PushString(g_eEntity[client].sName);
 	Call_PushCell(bCustom);
 	Call_PushCell(bSave);
 	Call_PushCell(iValue);
@@ -52,6 +52,7 @@ stock void Forward_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, 
 	Call_PushCell(kv);
 	Call_Finish();
 }
+/*
 stock void Forward_CustomEntitySpawn(int iEntity, bool bCustom, KeyValues kv)
 {
 	static Handle hForward;
@@ -65,3 +66,4 @@ stock void Forward_CustomEntitySpawn(int iEntity, bool bCustom, KeyValues kv)
 	Call_PushCell(kv);
 	Call_Finish();
 }
+*/

@@ -14,7 +14,7 @@ public Plugin myinfo =
 	name = "[Entity System] Trigger_",
 	author = "Rostu",
 	description = "Модуль для управления Entity с классом trigger_ ",
-	version = "1.3",
+	version = "1.4",
 	url = "https://vk.com/rostu13"
 };
 
@@ -90,11 +90,14 @@ public void Event_Start(Event hEvent, const char[] sName, bool bDontBroadcast)
 		GetEdictClassname(iEntity, sClassName, sizeof sClassName);
 
 		if(strcmp(sClassName, g_sEntityClassName) != 0) continue;
-
-		SDKHook(iEntity, SDKHook_StartTouch, OnTrigger_Start);
-		SDKHook(iEntity, SDKHook_EndTouch, OnTrigger);
-		SDKHook(iEntity, SDKHook_Touch, OnTrigger);
+        HookTrigger(iEntity);
 	}
+}
+stock void HookTrigger(int iEntity)
+{
+    SDKHook(iEntity, SDKHook_StartTouch, OnTrigger_Start);
+    SDKHook(iEntity, SDKHook_EndTouch, OnTrigger);
+    SDKHook(iEntity, SDKHook_Touch, OnTrigger);
 }
 public void Entity_OnAdminMenuCreated(TopMenu hAdmin, TopMenuObject hCategory)
 {
@@ -142,6 +145,8 @@ public void Entity_OnEntityRegister(int iEntity, char[] sClassName, bool bEdit, 
 	Format(sClassName,128, "[%d] %s [%s]",iEntity,sClassName,sKey);
 	IntToString(iEntity,sInfo,sizeof sInfo);
 	g_hEntityTeleportMenu.AddItem(sInfo,sClassName);
+
+    HookTrigger(iEntity);
 }
 
 public Action OnTrigger(int entity, int activator)
@@ -161,14 +166,17 @@ public Action OnTrigger(int entity, int activator)
 }
 public Action OnTrigger_Start(int entity, int activator)
 {
+    static int iFindIndex;
     if(activator && activator <= MaxClients)
     {
 		if(IsClientConnected(activator))
 		{
+            iFindIndex = g_hBlockedEntity.FindValue(entity);
+
 			if(g_bShow[activator])
-			CGOPrintToChat(activator, "[%N] %d [%d]",activator,entity,g_hBlockedEntity.FindValue(entity));
+			CGOPrintToChat(activator, "[%N] %d [%d] [%d]",activator,entity,iFindIndex, GetEntProp(entity, Prop_Data, "m_iHammerID"));
 			
-			if(IsFakeClient(activator) || g_hBlockedEntity.FindValue(entity) != -1)
+			if(IsFakeClient(activator) || iFindIndex != -1)
 			{
 				return Plugin_Handled;
 			}

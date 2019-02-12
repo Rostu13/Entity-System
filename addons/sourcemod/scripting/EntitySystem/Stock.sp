@@ -1,27 +1,41 @@
-stock void KVEditSave(int client, bool bSave = true)
+void KVEditSave(int client, bool bSave = true)
 {
-	char sKey[12];
-	IntToString(g_iEntityEdited[client],sKey,sizeof sKey);
+    int iHammerID = GetEntProp(g_eEntity[client].id, Prop_Data, "m_iHammerID");
+
+    if(iHammerID == IsCustomEntity)
+    {
+        PrintToChat(client, "Нельзя сохранять изменения кастомных entity *Feature*");
+        return;
+    }
+
+	char sEntityId[12];
+	IntToString(iHammerID, sEntityId, sizeof sEntityId);
 
 	float fTemp[3];
     int iColor[4];
+    char sBuffer[24];
 
 	if(bSave)
     {
-        if(g_TypePos[client] == Type_RGB)   GetEntDataArray(g_iEntityEdited[client], g_iRenderClrOffset, iColor, 4, 1); 
-		else                                GetEntPropVector(g_iEntityEdited[client], Prop_Data, g_TypePos[client] == Type_Pos ? "m_vecOrigin" : "m_angRotation", fTemp);
+        if(g_eEntity[client].type == Type_RGB)   GetEntDataArray(g_eEntity[client].id, g_iRenderClrOffset, iColor, 4, 1); 
+		else                                GetEntPropVector(g_eEntity[client].id, Prop_Data, g_eEntity[client].type == Type_Pos ? "m_vecOrigin" : "m_angRotation", fTemp);
     }
 
-	if(g_hKv.JumpToKey(sKey, bSave))
+	if(g_hKv.JumpToKey(sEntityId, bSave))
 	{
-        if(g_TypePos[client] == Type_RGB)   g_hKv.SetColor4("color", iColor);
-		else                                g_hKv.SetVector(g_sSaveKeyKV[g_TypePos[client]],  fTemp);
+        if(g_eEntity[client].type == Type_RGB)
+        {
+            FormatEx(sBuffer, sizeof sBuffer, "%d %d %d %d", iColor[0], iColor[1], iColor[2], iColor[3]);
+            g_hKv.SetString("color", sBuffer);
+        }
+		else                                g_hKv.SetVector(g_sSaveKeyKV[g_eEntity[client].type],  fTemp);
 
 		g_hKv.Rewind();
 		g_hKv.ExportToFile(g_sPath);
 	}
 }
-stock void ChangeEntity()
+/*
+void ChangeEntity()
 {
     if(!g_hKv.GotoFirstSubKey()) return;
 
@@ -36,7 +50,7 @@ stock void ChangeEntity()
         bCustom = view_as<bool>(g_hKv.GetNum("custom"));
         if(!bCustom && !IsValidEntity(iEntity)) continue;
 
-        ChangeEntityCustomPos(iEntity);
+        ChangeEntityCustomSettings(iEntity);
 
         Forward_CustomEntitySpawn(iEntity, bCustom, g_hKv);
     }
@@ -44,38 +58,52 @@ stock void ChangeEntity()
 
     g_hKv.Rewind();
 }
-stock void ChangeEntityCustomPos(int iEntity)
+*/
+void ChangeEntitySettings(int iEntity)
 {
     static float    fPos[3];
     static float    fAngles[3];
     static int      iColor[4];
+    //static char     sColor[4][4];
+    //static char     sColors[16];
 
     g_hKv.GetVector(g_sSaveKeyKV[Type_Pos], fPos);
     g_hKv.GetVector(g_sSaveKeyKV[Type_Angles], fAngles);
-    g_hKv.GetColor4(g_sSaveKeyKV[Type_RGB], iColor);
+    //g_hKv.GetString(g_sSaveKeyKV[Type_RGB], sColors, sizeof sColors);
 
     if(!IsNullVectorEx(fPos))                       TeleportEntity(iEntity, fPos, NULL_VECTOR, NULL_VECTOR);
     if(!IsNullVectorEx(fPos))                       SetEntPropVector(iEntity, Prop_Send, "m_angRotation", fAngles);
-    if( iColor[0] && iColor[1] && iColor[2])        SetEntDataArray(iEntity, g_iRenderClrOffset, iColor, 4, 1);
+
+    /*
+    if(sColors[0])
+    {
+        
+        ExplodeString(sColors, " ", sColor, sizeof(sColor[]), sizeof sColors);
+        for(int x; x < 4; i++) StringToIntEx(sColor[i], g_iColors[iClient][i]);
+        FormatEx(sBuffer, sizeof sBuffer, "%d %d %d %d", iColor[0], iColor[1], iColor[2], iColor[3]);
+        SetEntDataArray(iEntity, g_iRenderClrOffset, iColor, 4, 1);
+        
+    }
+    */
 }
-stock bool IsNullVectorEx(float fPos[3])
+bool IsNullVectorEx(float fPos[3])
 {
     return (fPos[0] == 0.0 && fPos[1] == 0.0 && fPos[2] == 0.0);
 }
-stock char CreateTitleEditMenu(int client)
+char CreateTitleEditMenu(int client)
 {
     int iColor[4];
     float fVec[3];
 
-    if(g_TypePos[client] == Type_RGB)   GetEntDataArray(g_iEntityEdited[client], g_iRenderClrOffset, iColor, 4, 1); 
-    else                            	GetEntPropVector(g_iEntityEdited[client], Prop_Send, g_TypePos[client] == Type_Pos ? "m_vecOrigin" : "m_angRotation", fVec);
+    if(g_eEntity[client].type == Type_RGB)   GetEntDataArray(g_eEntity[client].id, g_iRenderClrOffset, iColor, 4, 1); 
+    else                            	GetEntPropVector(g_eEntity[client].id, Prop_Send, g_eEntity[client].type == Type_Pos ? "m_vecOrigin" : "m_angRotation", fVec);
 
     char sDisplay[128];
     char sBuffer[32];
 
     for(int x = 0; x < 3; x++)
     {
-        if(g_TypePos[client] == Type_RGB)
+        if(g_eEntity[client].type == Type_RGB)
         {
             FormatEx(sBuffer,sizeof sBuffer, "%s %d", g_sChangeRGB[x], iColor[x]);
         }
@@ -83,8 +111,8 @@ stock char CreateTitleEditMenu(int client)
         {
             FormatEx(sBuffer,sizeof sBuffer, "%c %.2f", 'X' + x, fVec[ GetNumberAxis( x ) ] );
         }
-        if( (g_TypePos[client] == Type_RGB && view_as<int>(g_Color[client]) == x ) 
-            || (g_TypePos[client] != Type_RGB &&g_Axis[client] == GetNumberAxis( x ) ))         Format(sBuffer,sizeof sBuffer, ">> %s <<\n", sBuffer);
+        if( (g_eEntity[client].type == Type_RGB && view_as<int>(g_eEntity[client].color) == x ) 
+            || (g_eEntity[client].type != Type_RGB && g_eEntity[client].axis == GetNumberAxis( x ) ))         Format(sBuffer,sizeof sBuffer, ">> %s <<\n", sBuffer);
         else                                                                                    Format(sBuffer,sizeof sBuffer, "%s\n", sBuffer);
 
         Format(sDisplay,sizeof sDisplay, "%s%s", sDisplay, sBuffer);
@@ -92,17 +120,27 @@ stock char CreateTitleEditMenu(int client)
 
     return sDisplay;
 }
-stock void TeleportToEditEntity(int client)
+void TeleportToEditEntity(int client)
 {
 	float fPos[3];
-	GetEntPropVector(g_iEntityEdited[client], Prop_Data, "m_vecOrigin", fPos);
+	GetEntPropVector(g_eEntity[client].id, Prop_Data, "m_vecOrigin", fPos);
 
 	TeleportEntity(client,fPos,NULL_VECTOR,NULL_VECTOR);
 }
-/*EntitySystem/Menu.sp(16 -- 18) : error 033: array must be indexed (variable "GetClientAxisEdit")
-stock char GetClientAxisEdit(int client)
+void DeleteEntity(int iClient = 0, int iEntity)
 {
-    switch(g_Axis[client])
+    if(IsValidEntity(iEntity))
+    {
+        if(iClient) PrintToChat(iClient, "Вы успешно удалили эту entity!");
+
+        AcceptEntityInput(iEntity, "Kill");
+    }
+    else if(iClient) PrintToChat(iClient, "Не валидная entity [%d]!", iEntity);
+}
+/*EntitySystem/Menu.sp(16 -- 18) : error 033: array must be indexed (variable "GetClientAxisEdit")
+char GetClientAxisEdit(int client)
+{
+    switch(g_eEntity[client].axis)
     {
         case Axis_X:	return 'X';
         case Axis_Y:	return 'Y';
@@ -112,11 +150,11 @@ stock char GetClientAxisEdit(int client)
     return ' ';
 }
 */
-stock char GetClientAxisEdit(int client)
+char GetClientAxisEdit(int client)
 {
     char sSymbol[2];
 
-    switch(g_Axis[client])
+    switch(g_eEntity[client].axis)
     {
         case Axis_X:	sSymbol =  "X";
         case Axis_Y:	sSymbol =  "Y";
@@ -126,32 +164,31 @@ stock char GetClientAxisEdit(int client)
     return sSymbol;
 }
 
-stock ChangePosEntity GetNumberAxis(int axis)
+ChangePos GetNumberAxis(int axis)
 {
     switch(axis)
     {
         case 0: return Axis_X;
         case 1: return Axis_Y;
+        default: return Axis_Z;
     }
-
-    return Axis_Z;
 }
-stock char[] GetClientItemEdit(int client)
+char[] GetClientItemEdit(int client)
 {
 	char sBuffer[24];
 
-	if( g_TypePos[client] == Type_RGB )
+	if( g_eEntity[client].type == Type_RGB )
 	{
-		FormatEx(sBuffer,sizeof sBuffer, "%s", g_sChangeRGB[ g_Color[client] ]);
+		FormatEx(sBuffer,sizeof sBuffer, "%s", g_sChangeRGB[ g_eEntity[client].color ]);
 		return sBuffer
 	}
-	FormatEx(sBuffer,sizeof sBuffer, "%s",GetClientAxisEdit(client) );
+	FormatEx(sBuffer,sizeof sBuffer, "%s", GetClientAxisEdit(client) );
 
 	return sBuffer;
 }
 
 //https://github.com/TotallyMehis/Influx-Timer/blob/35ac15e283cc1f208721bc0985e83b41fc70f848/addons/sourcemod/scripting/include/msharedutil/misc.inc#L134-L148
-stock bool DirExistsEx(const char[] sPath)
+bool DirExistsEx(const char[] sPath)
 {
     if ( !DirExists( sPath ) )
     {
@@ -167,7 +204,7 @@ stock bool DirExistsEx(const char[] sPath)
     return true;
 }
 //https://github.com/TotallyMehis/Influx-Timer/blob/35ac15e283cc1f208721bc0985e83b41fc70f848/addons/sourcemod/scripting/include/msharedutil/misc.inc#L18-L69
-stock void GetCurrentMapSafe( char[] sz, int len )
+void GetCurrentMapSafe( char[] sz, int len )
 {
     char map[128];
     GetCurrentMapLower( map, sizeof( map ) );
@@ -195,13 +232,13 @@ stock void GetCurrentMapSafe( char[] sz, int len )
     }
     
 }
-stock void GetCurrentMapLower( char[] sz, int len )
+void GetCurrentMapLower( char[] sz, int len )
 {
     GetCurrentMap( sz, len );
     
     StringToLower( sz );
 }
-stock void StringToLower( char[] sz )
+void StringToLower( char[] sz )
 {
     int len = strlen( sz );
     
